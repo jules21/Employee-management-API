@@ -34,7 +34,7 @@ const EmployeeSchema = new mongoose.Schema({
 	},
 	position: {
 		type: String,
-		enum: [ 'Manager', 'Developer', 'Designer', 'Other' ],
+		enum: [ 'Manager', 'developer', 'designer', 'other' ],
 		required: true
 	}
 });

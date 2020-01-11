@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const colors = require('colors');
 const logger = require('./middleware/logger');
 const connectDB = require('./config/db');
+const errorHandler = require('./middleware/error');
 
 // Load env vars
 dotenv.config({ path: './config/config.env' });
@@ -11,14 +12,19 @@ dotenv.config({ path: './config/config.env' });
 connectDB();
 
 // Route files
-
 const employees = require('./routes/employees');
 
 const app = express();
+
+// Body parser
+app.use(express.json());
+
 // logging middleware
 app.use(logger);
 // mount routers
 app.use('/api/v1/employees/', employees);
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
