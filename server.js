@@ -13,6 +13,7 @@ connectDB();
 
 // Route files
 const employees = require('./routes/employees');
+const auth = require('./routes/auth');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(express.json());
 app.use(logger);
 // mount routers
 app.use('/api/v1/employees/', employees);
+app.use('/api/v1/auth/', auth);
 
 app.use(errorHandler);
 
