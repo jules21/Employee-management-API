@@ -6,7 +6,14 @@ const colors = require('colors');
 
 dotenv.config({ path: './config/config.env' });
 
+// Route files
+
+const employees = require('./routes/employees');
+
 const app = express();
+
+// mount routers
+app.use('/api/v1/employees/', employees);
 
 const PORT = process.env.PORT || 5000;
 
