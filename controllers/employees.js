@@ -5,7 +5,9 @@ const Employee = require('../models/Employee');
 // @route   GET /api/v1/employees
 // @access  Public
 exports.getEmployees = asyncHandler(async (req, res, next) => {
-	const employees = await Employee.find();
+	console.log(req.query);
+
+	const employees = await Employee.find(req.query);
 	res.status('200').json({ success: true, count: employees.length, data: employees });
 });
 
@@ -46,14 +48,36 @@ exports.updateEmployee = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/v1/employees/:id/activate
 // @access  Private
 exports.activateEmployee = asyncHandler(async (req, res, next) => {
-	res.status('200').json({ success: true, data: 'activate employee' });
+	const employee = await Employee.findByIdAndUpdate(
+		req.params.id,
+		{ status: 'active' },
+		{
+			new: true,
+			runValidators: true
+		}
+	);
+	if (!employee) {
+		return next(new ErrorResponse(`resource not found with id ${req.params.id}`));
+	}
+	res.status('200').json({ success: true, data: employee });
 });
 
 // @desc    suspend employee
 // @route   PUT /api/v1/employees/:id/suspend
 // @access  Private
 exports.suspendEmployee = asyncHandler(async (req, res, next) => {
-	res.status('200').json({ success: true, data: 'suspend employee' });
+	const employee = await Employee.findByIdAndUpdate(
+		req.params.id,
+		{ status: 'inactive' },
+		{
+			new: true,
+			runValidators: true
+		}
+	);
+	if (!employee) {
+		return next(new ErrorResponse(`resource not found with id ${req.params.id}`));
+	}
+	res.status('200').json({ success: true, data: employee });
 });
 
 // @desc    update employee
