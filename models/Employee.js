@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const sendEmail = require('../utils/sendEmail');
 const uniqueValidator = require('mongoose-unique-validator');
 
 const EmployeeSchema = new mongoose.Schema({
@@ -8,13 +12,13 @@ const EmployeeSchema = new mongoose.Schema({
 		required: [ 'true', 'please add an employee name' ]
 	},
 	nationalId: {
-		type: Number,
+		type: String,
 		unique: true,
-		match: [ /^[0-9]{16}$/, 'national id must be 16 numbers' ],
+		match: [ /^((119)|(112)){1}[0-9]{13}$/, 'please add valid national id[Rwandan]' ],
 		required: [ true, 'please add a national Id' ]
 	},
 	phoneNumber: {
-		type: Number,
+		type: String,
 		unique: true,
 		match: [ /^((072)|(078)|(073)){1}[0-9]{7}$/, 'please add valid phone number[Rwandan number].' ],
 		required: [ true, 'please add a phone number' ]
@@ -27,7 +31,8 @@ const EmployeeSchema = new mongoose.Schema({
 	},
 	dateOfBirth: {
 		type: Date,
-		required: [ true, 'please add Date of birth' ]
+		required: [ true, 'please add Date of birth' ],
+		max: [ '2002-01-15', 'must be above 18 years old' ]
 	},
 	status: {
 		type: String,
@@ -36,40 +41,58 @@ const EmployeeSchema = new mongoose.Schema({
 	},
 	position: {
 		type: String,
-		enum: [ 'Manager', 'developer', 'designer', 'other' ],
+		enum: [ 'manager', 'developer', 'designer', 'other' ],
 		required: true
+	},
+	password: {
+		type: String,
+		minlength: 6,
+		select: false
+	},
+	resetPasswordToken: {
+		type: String,
+		select: false
+	},
+	resetPasswordExpire: {
+		type: Date,
+		select: false
+	},
+	createdAt: {
+		type: Date,
+		default: Date.now
 	}
 });
-// Apply the uniqueValidator plugin to userSchema.
+// Apply the uniqueValidator plugin to Schema.
 EmployeeSchema.plugin(uniqueValidator, { message: '{PATH} must be unique. {VALUE} is already taken ' });
 
-EmployeeSchema.post('save', function(doc) {
-	// console.log('%s has been saved', doc._id);
-	// create reusable transporter object using the default SMTP transport
-	let transport = nodemailer.createTransport({
-		host: process.env.MAIL_HOST,
-		port: process.env.MAIL_HOST,
-		auth: {
-			user: process.env.MAIL_USERNAME,
-			pass: process.env.MAIL_PASSWORD
-		}
-	});
-	const message = {
-		from: 'non-reply@company-name.com', // Sender address
-		to: `${doc.email}`, // List of recipients
-		subject: 'Welcome to [company name]!', // Subject line
-		html: `<p>Welcome ${doc.names},</p> 
-		<p>We are very happy to have you join our organization. I hope you are ready to fall in love with your new job and meet your new colleagues.</p>
-		<p>If you have any questions, we will be happy to answer. Please don’t hesitate to contact us by email or phone. <br>
-		Again, congratulations. We are thrilled to you have you join the team and look forward to meeting you!</p>
-		<br><br>
-		Regards,`
-	};
-	transport.sendMail(message, function(err, info) {
-		if (err) {
-			console.log(err);
-		}
-	});
+EmployeeSchema.pre('save', async function(next) {
+	if (!this.isModified('password')) {
+		next();
+	}
+	const salt = await bcrypt.genSalt(10);
+	this.password = await bcrypt.hash(this.password, salt);
 });
+
+// Sign JWT and return
+EmployeeSchema.methods.getSignedJwtToken = function() {
+	return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+		expiresIn: process.env.JWT_EXPIRE
+	});
+};
+
+EmployeeSchema.methods.matchPassword = async function(enteredPasword) {
+	return await bcrypt.compare(enteredPasword, this.password);
+};
+
+// Generate and hash password token
+EmployeeSchema.methods.getResetPasswordToken = function() {
+	const resetToken = crypto.randomBytes(20).toString('hex');
+
+	this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+	this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+	return resetToken;
+};
 
 module.exports = mongoose.model('employees', EmployeeSchema);
